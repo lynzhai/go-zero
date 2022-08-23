@@ -2240,7 +2240,7 @@ func (s *Redis) ZrangebyscoreWithScoresAndOffsetLimit(key string, start, stop in
 func (s *Redis) ZrangebyscoreWithScoresAndLimitOffsetCtx(ctx context.Context, key string, start,
 	stop int64, offset, count int) (val []Pair, err error) {
 	err = s.brk.DoWithAcceptable(func() error {
-		if size <= 0 {
+		if count <= 0 {
 			return nil
 		}
 
@@ -2252,8 +2252,8 @@ func (s *Redis) ZrangebyscoreWithScoresAndLimitOffsetCtx(ctx context.Context, ke
 		v, err := conn.ZRangeByScoreWithScores(ctx, key, &red.ZRangeBy{
 			Min:    strconv.FormatInt(start, 10),
 			Max:    strconv.FormatInt(stop, 10),
-			Offset: offset,
-			Count:  count,
+			Offset: int64(offset),
+			Count:  int64(count),
 		}).Result()
 		if err != nil {
 			return err
