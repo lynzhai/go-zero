@@ -2231,6 +2231,41 @@ func (s *Redis) ZrangebyscoreWithScoresAndLimitCtx(ctx context.Context, key stri
 	return
 }
 
+func (s *Redis) ZrangebyscoreWithScoresAndOffsetLimit(key string, start, stop int64,
+	offset, count int) ([]Pair, error) {
+	return s.ZrangebyscoreWithScoresAndLimitOffsetCtx(context.Background(), key, start, stop, offset, count)
+}
+
+//zql add for offset count
+func (s *Redis) ZrangebyscoreWithScoresAndLimitOffsetCtx(ctx context.Context, key string, start,
+	stop int64, offset, count int) (val []Pair, err error) {
+	err = s.brk.DoWithAcceptable(func() error {
+		if size <= 0 {
+			return nil
+		}
+
+		conn, err := getRedis(s)
+		if err != nil {
+			return err
+		}
+
+		v, err := conn.ZRangeByScoreWithScores(ctx, key, &red.ZRangeBy{
+			Min:    strconv.FormatInt(start, 10),
+			Max:    strconv.FormatInt(stop, 10),
+			Offset: offset,
+			Count:  count,
+		}).Result()
+		if err != nil {
+			return err
+		}
+
+		val = toPairs(v)
+		return nil
+	}, acceptable)
+
+	return
+}
+
 // Zrevrange is the implementation of redis zrevrange command.
 func (s *Redis) Zrevrange(key string, start, stop int64) ([]string, error) {
 	return s.ZrevrangeCtx(context.Background(), key, start, stop)
