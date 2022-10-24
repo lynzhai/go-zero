@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"github.com/zeromicro/go-zero/core/logx"
 	"strconv"
 	"time"
 
@@ -2266,6 +2267,41 @@ func (s *Redis) ZrangebyscoreWithScoresAndLimitOffsetCtx(ctx context.Context, ke
 	return
 }
 
+func (s *Redis) ZrevrangebyscoreWithScoresAndOffsetLimit(key string, start, stop int64,
+	offset, count int) ([]Pair, error) {
+	return s.ZrangebyscoreWithScoresAndLimitOffsetCtx(context.Background(), key, start, stop, offset, count)
+}
+
+//zql add for offset count
+func (s *Redis) ZrevrangebyscoreWithScoresAndLimitOffsetCtx(ctx context.Context, key string, start,
+	stop int64, offset, count int) (val []Pair, err error) {
+	err = s.brk.DoWithAcceptable(func() error {
+		if count <= 0 {
+			return nil
+		}
+
+		conn, err := getRedis(s)
+		if err != nil {
+			return err
+		}
+
+		v, err := conn.ZRevRangeByScoreWithScores(ctx, key, &red.ZRangeBy{
+			Min:    strconv.FormatInt(start, 10),
+			Max:    strconv.FormatInt(stop, 10),
+			Offset: int64(offset),
+			Count:  int64(count),
+		}).Result()
+		if err != nil {
+			return err
+		}
+
+		val = toPairs(v)
+		return nil
+	}, acceptable)
+
+	return
+}
+
 // Zrevrange is the implementation of redis zrevrange command.
 func (s *Redis) Zrevrange(key string, start, stop int64) ([]string, error) {
 	return s.ZrevrangeCtx(context.Background(), key, start, stop)
@@ -2470,4 +2506,61 @@ func toStrings(vals []interface{}) []string {
 		}
 	}
 	return ret
+}
+
+// Zcount is the implementation of redis ZLEXCOUNT  command.
+func (s *Redis) ZLexCount(key string, start, stop string) (int, error) {
+	return s.ZLexCountCtx(context.Background(), key, start, stop)
+}
+
+// ZcountCtx is the implementation of redis ZLEXCOUNT  command.
+func (s *Redis) ZLexCountCtx(ctx context.Context, key string, start, stop string) (val int, err error) {
+	err = s.brk.DoWithAcceptable(func() error {
+		conn, err := getRedis(s)
+		if err != nil {
+			return err
+		}
+
+		v, err := conn.ZLexCount(ctx, key, start, stop).Result()
+		if err != nil {
+			return err
+		}
+
+		val = int(v)
+		return nil
+	}, acceptable)
+
+	return
+}
+
+func (s *Redis) ZRangeByLex(key string, min, max string, page, size int) (val []string, err error) {
+	return s.ZRangeByLexCtx(context.Background(), key, min, max, page, size)
+}
+
+func (s *Redis) ZRangeByLexCtx(ctx context.Context, key string, min, max string, page, size int) (val []string, err error) {
+	err = s.brk.DoWithAcceptable(func() error {
+		conn, err := getRedis(s)
+		if err != nil {
+			return err
+		}
+
+		logx.Info(fmt.Sprintf("ZRangeByLexCtx key:%s min:%s max:%s page:%d size:%d", key, min, max, page, size))
+		opt := &red.ZRangeBy{
+			Min:    min,
+			Max:    max,
+			Offset: int64(page * size),
+			Count:  int64(size),
+		}
+
+		val, err = conn.ZRangeByLex(ctx, key, opt).Result()
+		if err != nil {
+			return err
+		}
+
+		logx.Info(fmt.Sprintf("val len:%d", len(val)))
+
+		return nil
+	}, acceptable)
+
+	return
 }
